@@ -6,11 +6,10 @@ import tensorflow as tf
 from tensorflow.keras import layers, models, callbacks
 from sklearn.model_selection import train_test_split
 
-from model.preprocessing import (
-    MAX_FRAMES,
-    NUM_FEATURES,
-    parse_parquet,
-)
+try:
+    from model.preprocessing import MAX_FRAMES, NUM_FEATURES, parse_parquet
+except ModuleNotFoundError:
+    from preprocessing import MAX_FRAMES, NUM_FEATURES, parse_parquet
 
 DATA_DIR = "model/data/dataset_263/keypoints"
 CHECKPOINT_DIR = "model/checkpoints"
