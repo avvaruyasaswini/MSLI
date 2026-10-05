@@ -13,7 +13,6 @@ function App() {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Start camera
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -30,11 +29,11 @@ function App() {
     }
   };
 
-  // Start recording
   const startRecording = () => {
     if (!streamRef.current) return;
 
     chunksRef.current = [];
+    setPrediction(null);
 
     const recorder = new MediaRecorder(streamRef.current);
     mediaRecorderRef.current = recorder;
@@ -46,10 +45,7 @@ function App() {
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, {
-        type: "video/webm",
-      });
-
+      const blob = new Blob(chunksRef.current, { type: "video/webm" });
       const videoURL = URL.createObjectURL(blob);
       setRecordedVideo(videoURL);
     };
@@ -58,64 +54,60 @@ function App() {
     setRecording(true);
   };
 
-  // Stop recording
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
     }
-
     setRecording(false);
   };
 
-  // Delete recorded video
   const deleteRecording = () => {
     if (recordedVideo) {
       URL.revokeObjectURL(recordedVideo);
     }
-
     setRecordedVideo(null);
+    setPrediction(null);
   };
 
-  // Record again
   const recordAgain = () => {
     deleteRecording();
-    const predictVideo = async () => {
-  if (!recordedVideo) return;
-
-  setLoading(true);
-
-  try {
-    const response = await fetch(recordedVideo);
-    const blob = await response.blob();
-
-    const formData = new FormData();
-    formData.append("file", blob, "recording.webm");
-
-    const result = await fetch("http://127.0.0.1:8000/predict", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!result.ok) {
-      throw new Error("Prediction failed");
-    }
-
-    const data = await result.json();
-    setPrediction(data);
-  } catch (error) {
-    console.error(error);
-    alert("Could not connect to the backend.");
-  } finally {
-    setLoading(false);
-  }
-};
-
     if (streamRef.current) {
       startRecording();
     }
   };
 
-  // Stop camera
+  const predictVideo = async () => {
+    if (!recordedVideo) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(recordedVideo);
+      const blob = await response.blob();
+
+      const formData = new FormData();
+      formData.append("file", blob, "recording.webm");
+
+      const result = await fetch("http://127.0.0.1:8000/predict", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!result.ok) {
+        const errorBody = await result.text();
+        throw new Error(errorBody || "Prediction failed");
+      }
+
+      const data = await result.json();
+      setPrediction(data);
+    } catch (error) {
+      console.error(error);
+      alert("Could not connect to the backend or run the model.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stopCamera = () => {
     if (recording) {
       stopRecording();
@@ -123,6 +115,7 @@ function App() {
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
 
     if (videoRef.current) {
@@ -132,10 +125,15 @@ function App() {
     setCameraOn(false);
   };
 
+  const recognizedSign = prediction?.sign || "";
+  const confidence = prediction
+    ? `${(prediction.confidence * 100).toFixed(1)}%`
+    : "";
+  const sentence = prediction?.sentence || "";
+  const translation = prediction?.translation || sentence || "";
+
   return (
     <div className="app">
-
-      {/* NAVBAR */}
       <nav className="navbar">
         <div className="logo">MSLI</div>
 
@@ -151,21 +149,15 @@ function App() {
         </select>
       </nav>
 
-      {/* MAIN */}
       <main className="main-container">
-
         <h1>Sign Language Recognition</h1>
 
         <p className="subtitle">
           Convert your sign language gestures into text
         </p>
 
-        {/* CAMERA + RESULT */}
         <div className="top-layout">
-
-          {/* CAMERA SECTION */}
           <section className="card camera-section">
-
             <div className="section-header">
               <h2>Live Camera</h2>
 
@@ -175,7 +167,6 @@ function App() {
             </div>
 
             <div className="camera-box">
-
               {!cameraOn && (
                 <div className="camera-message">
                   <div className="camera-icon">Camera</div>
@@ -190,113 +181,85 @@ function App() {
                 playsInline
                 className={cameraOn ? "camera-video" : "hidden"}
               />
-
             </div>
 
-            {/* CONTROLS */}
             <div className="controls">
-
               {!cameraOn && (
-                <button
-                  className="btn primary"
-                  onClick={startCamera}
-                >
+                <button className="btn primary" onClick={startCamera}>
                   Start Camera
                 </button>
               )}
 
               {cameraOn && !recording && (
-                <button
-                  className="btn record"
-                  onClick={startRecording}
-                >
+                <button className="btn record" onClick={startRecording}>
                   Start Recording
                 </button>
               )}
 
               {recording && (
-                <button
-                  className="btn stop"
-                  onClick={stopRecording}
-                >
+                <button className="btn stop" onClick={stopRecording}>
                   Stop Recording
                 </button>
               )}
 
               {cameraOn && !recording && (
-                <button
-                  className="btn secondary"
-                  onClick={stopCamera}
-                >
+                <button className="btn secondary" onClick={stopCamera}>
                   Stop Camera
                 </button>
               )}
-
             </div>
-
           </section>
 
-
-          {/* RECOGNITION RESULT */}
           <section className="card result-section">
-
             <h2>Recognition Result</h2>
 
-            {/* WORDS */}
             <div className="result-block">
               <h3>Recognized Words</h3>
-
               <div className="result-box">
-                <span className="placeholder">
-                  Generated sentence will appear here
+                <span className={recognizedSign ? "" : "placeholder"}>
+                  {recognizedSign || "No sign recognized yet"}
                 </span>
               </div>
             </div>
 
-
-            {/* SENTENCE */}
             <div className="result-block">
               <h3>Generated Sentence</h3>
-
               <div className="result-box sentence-box">
-                <span className="placeholder">
-                  Generated sentence will appear here
+                <span className={sentence ? "" : "placeholder"}>
+                  {sentence || "Generated sentence will appear here"}
                 </span>
               </div>
             </div>
 
-
-            {/* TRANSLATION */}
             <div className="result-block">
               <h3>Translation</h3>
-
               <div className="result-box translation-box">
-                <span className="placeholder">
-                  Translation will appear here
+                <span className={translation ? "" : "placeholder"}>
+                  {translation || "Translation will appear here"}
                 </span>
               </div>
             </div>
 
+            {prediction && (
+              <div className="result-block">
+                <h3>Confidence</h3>
+                <div className="result-box">
+                  <span>{confidence}</span>
+                </div>
+              </div>
+            )}
 
-            {/* AUDIO */}
-            <button className="audio-btn">
+            <button className="audio-btn" disabled>
               Play Audio
             </button>
-
           </section>
-
         </div>
 
-
-        {/* RECORDED VIDEO */}
         <section className="card recorded-section">
-
           <h2>Recorded Video</h2>
 
           {recordedVideo ? (
-
             <div className="recorded-content">
-
               <video
                 src={recordedVideo}
                 controls
@@ -304,18 +267,11 @@ function App() {
               />
 
               <div className="video-actions">
-
-                <button
-                  className="btn delete"
-                  onClick={deleteRecording}
-                >
+                <button className="btn delete" onClick={deleteRecording}>
                   Delete
                 </button>
 
-                <button
-                  className="btn secondary"
-                  onClick={recordAgain}
-                >
+                <button className="btn secondary" onClick={recordAgain}>
                   Record Again
                 </button>
 
@@ -326,27 +282,18 @@ function App() {
                 >
                   {loading ? "Recognizing..." : "Recognize Sign"}
                 </button>
-
               </div>
-
             </div>
-
           ) : (
-
             <div className="no-video">
               <p>No video recorded yet.</p>
-
               <small>
                 Start recording and stop when you finish your gesture.
               </small>
             </div>
-
           )}
-
         </section>
-
       </main>
-
     </div>
   );
 }
