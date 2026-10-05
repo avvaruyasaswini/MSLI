@@ -38,9 +38,9 @@ def _safe_init_from_config(cls, config):
 initializers.Initializer.from_config = _safe_init_from_config
 # ---------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "checkpoints", "isl_model_best.keras")
-CLASS_MAP_PATH = os.path.join(BASE_DIR, "checkpoints", "class_map.json")
+MODEL_ROOT = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(MODEL_ROOT, "checkpoints", "isl_model_best.keras")
+CLASS_MAP_PATH = os.path.join(MODEL_ROOT, "checkpoints", "class_map.json")
 
 _MODEL = None
 _CLASS_MAP = None
